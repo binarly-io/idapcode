@@ -152,16 +152,8 @@ class FuncPcode:
             bittness = self._get_app_bittness()
             sleigh += f":{str(bittness)}"
             if bittness == 16:
-                sleigh += ":Real Mode"
-            else:
-                sleigh += ":default"
-            if self._inf.cc.id == idaapi.COMP_BC:
-                sleigh += ":borlandcpp"
-            elif self._inf.cc.id == idaapi.COMP_MS:
-                sleigh += ":windows"
-            elif self._inf.cc.id == idaapi.COMP_GNU:
-                sleigh += ":gcc"
-            return sleigh
+                return f"{sleigh}:Real Mode"
+            return f"{sleigh}:default"
         elif proc_id == idaapi.PLFM_Z80:
             return sleigh
         return None
@@ -293,7 +285,7 @@ class pcodecv_t(ida_kernwin.simplecustviewer_t):
 def show_pcodecv():
     pcodecv = pcodecv_t()
     if not pcodecv.Create(use_colors=True):
-        print("[ {NAME} ] failed to create view")
+        print(f"[ {NAME} ] failed to create view")
         return None
     pcodecv.Show()
     return pcodecv
