@@ -1,4 +1,5 @@
 import traceback
+from typing import Dict, List, Optional
 
 import ida_bytes
 import ida_funcs
@@ -18,19 +19,20 @@ WANTED_KEY = "Ctrl+Alt+S"
 
 DEBUG = False
 
+
 # -----------------------------------------------------------------------
 class FuncPcode:
     """Helper class for getting p-code for a function"""
 
-    def __init__(self, addr: int):
+    def __init__(self, addr: int) -> None:
         self._addr: int = addr
-        self._func_pcode: str = None
-        self._func_name: str = None
+        self._func_pcode: Optional[List[str]] = None
+        self._func_name: Optional[str] = None
         self._inf = idaapi.get_inf_structure()
 
         # adopted from
         # https://github.com/cseagle/blc/blob/b1447562a3598fd411224dfc24b970cf53ca7c94/plugin.cc#L516
-        self._proc_map = dict()
+        self._proc_map: Dict[Any] = dict()
         self._proc_map[idaapi.PLFM_6502] = "6502"
         self._proc_map[idaapi.PLFM_68K] = "68000"
         self._proc_map[idaapi.PLFM_6800] = "6805"
@@ -69,7 +71,7 @@ class FuncPcode:
     def _get_proc_id(self) -> int:
         return idaapi.ph_get_id()
 
-    def _get_proc(self) -> str:
+    def _get_proc(self) -> Optional[str]:
         proc_id = self._get_proc_id()
         if proc_id not in self._proc_map:
             return None
@@ -80,7 +82,7 @@ class FuncPcode:
             return "BE"
         return "LE"
 
-    def _get_sleigh_id(self) -> str:
+    def _get_sleigh_id(self) -> Optional[str]:
         """Get sleigh language id string"""
 
         proc = self._get_proc()
@@ -201,27 +203,25 @@ class FuncPcode:
                 f"{insn.asm_mnem.lower()} {insn.asm_body.lower()}",
                 ida_lines.SCOLOR_INSN,
             )
-            pcode_lines.append(f"{asm_prefix}\x20\x20{asm_insn}")
+            pcode_lines.append(f"{asm_prefix}  {asm_insn}")
             # append P-Code text
             for op in insn.ops:
-                pcode_lines.append(f"\x20\x20{PcodePrettyPrinter.fmt_op(op)}")
+                pcode_lines.append(f"  {PcodePrettyPrinter.fmt_op(op)}")
 
             pcode_lines.append("\n")
 
         return pcode_lines
 
     @property
-    def func_name(self):
-        if self._func_name is not None:
-            return self._func_name
-        self._func_name = self._get_func_name()
+    def func_name(self) -> str:
+        if self._func_name is None:
+            self._func_name = self._get_func_name()
         return self._func_name
 
     @property
-    def pcode(self):
-        if self._func_pcode is not None:
-            return self._func_pcode
-        self._func_pcode = self._get_pcode()
+    def pcode(self) -> List[str]:
+        if self._func_pcode is None:
+            self._func_pcode = self._get_pcode()
         return self._func_pcode
 
 

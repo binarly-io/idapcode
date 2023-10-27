@@ -1,6 +1,6 @@
+.vscode/
+.mypy_cache
 *.egg-info/
 __pycache__/
 build/
 dist/
-
-.vscode/
