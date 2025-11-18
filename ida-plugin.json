@@ -1,0 +1,29 @@
+{
+  "IDAMetadataDescriptorVersion": 1,
+  "plugin": {
+    "name": "idapcode",
+    "entryPoint": "idapcode.py",
+    "version": "1.0.0",
+    "idaVersions": ">=9.0",
+    "urls": {
+      "repository": "https://github.com/binarly-io/idapcode"
+    },
+    "authors": [
+      {
+        "name": "yeggor",
+        "email": "yv@yegor.cc"
+      }
+    ],
+    "description": "IDA plugin that displays the P-code for the current function",
+    "platforms": [
+      "windows-x86_64",
+      "linux-x86_64",
+      "macos-x86_64",
+      "macos-aarch64"
+    ],
+    "license": "MIT OR Apache-2.0",
+    "categories": ["ui-ux-and-visualization"],
+    "keywords": ["ghidra", "p-code", "pypcode", "angr"],
+    "pythonDependencies": ["pypcode~=3.3.3"]
+  }
+}

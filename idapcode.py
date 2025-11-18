@@ -12,7 +12,7 @@ import pypcode
 
 NAME = "idapcode"
 
-__version__ = "0.0.2"
+__version__ = "1.0.0"
 
 HELP_MESSAGE = "Display P-Code for current function"
 COMMENT_MESSAGE = HELP_MESSAGE
