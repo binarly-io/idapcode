@@ -61,7 +61,7 @@ class FuncPcode:
     def _get_app_bittness(self) -> int:
         if self._inf_is_64bit():
             return 64
-        if self._inf_is_32bit():
+        elif self._inf_is_32bit():
             return 32
         return 16
 
@@ -75,6 +75,7 @@ class FuncPcode:
         proc_id = self._get_proc_id()
         if proc_id not in self._proc_map:
             return None
+
         return self._proc_map[proc_id]
 
     def _get_endian(self) -> str:
@@ -88,6 +89,7 @@ class FuncPcode:
         proc = self._get_proc()
         if proc is None:
             return None
+
         endian = self._get_endian()
 
         # adapted from
@@ -109,7 +111,7 @@ class FuncPcode:
         elif proc_id == idaapi.PLFM_AVR:
             if self._get_app_bittness() == 32:
                 return f"avr32:{endian}:32:default"
-            if self._get_app_bittness() == 16:
+            elif self._get_app_bittness() == 16:
                 return f"{sleigh}:16:default"
             return sleigh
         elif proc_id == idaapi.PLFM_CR16:
@@ -122,9 +124,9 @@ class FuncPcode:
             abi = idaapi.get_abi_name()
             if abi and ("n32" in abi):
                 return f"{sleigh}:64:64-32addr"
-            if self._inf_is_64bit():
+            elif self._inf_is_64bit():
                 return f"{sleigh}:64:default"
-            if self._inf_is_32bit():
+            elif self._inf_is_32bit():
                 return f"{sleigh}:32:default"
             return sleigh
         elif proc_id == idaapi.PLFM_HPPA:
@@ -135,15 +137,15 @@ class FuncPcode:
             abi = idaapi.get_abi_name()
             if abi and ("xbox" in abi):
                 return f"{sleigh}:64:A2ALT-32addr"
-            if self._inf_is_64bit():
+            elif self._inf_is_64bit():
                 return f"{sleigh}:64:default"
-            if self._inf_is_32bit():
+            elif self._inf_is_32bit():
                 return f"{sleigh}:32:default"
             return sleigh
         elif proc_id == idaapi.PLFM_SPARC:
             if self._inf_is_64bit():
                 return f"{sleigh}:64:default"
-            if self._inf_is_32bit():
+            elif self._inf_is_32bit():
                 return f"{sleigh}:32:default"
             return sleigh
         elif proc_id == idaapi.PLFM_MSP430:
@@ -164,7 +166,8 @@ class FuncPcode:
         """Get function name"""
         f = ida_funcs.get_func(self._addr)
         if f is None:
-            return "unknown"
+            return "invalid"
+
         return ida_name.get_name(f.start_ea)
 
     def _get_func_bytes(self) -> bytes:
@@ -172,13 +175,21 @@ class FuncPcode:
         f = ida_funcs.get_func(self._addr)
         if f is None:
             return bytes()
+
         return ida_bytes.get_bytes(f.start_ea, f.end_ea - f.start_ea)
 
     def _get_pcode(self) -> list:
         """Get P-Code lines"""
+        func = ida_funcs.get_func(self._addr)
+        if func is None:
+            print(f"[{NAME}] invalid function at {self._addr:#x}")
+            return list()
+
         code = self._get_func_bytes()
+
         if code is None:
             return list()
+
         # get sleigh id
         sleigh_id = self._get_sleigh_id()
         if sleigh_id is None:
@@ -197,15 +208,9 @@ class FuncPcode:
             return list()
 
         ctx = pypcode.Context(langs[sleigh_id])
+        tx = ctx.translate(buf=code, base_address=func.start_ea)
 
         pcode_lines = list()
-
-        func = ida_funcs.get_func(self._addr)
-        if func is None:
-            print(f"[{NAME}] invalid function at {self._addr:#x}")
-            return list()
-
-        tx = ctx.translate(buf=code, base_address=func.start_ea)
 
         for op in tx.ops:
             # process IMARK operation which used to identify machine
