@@ -3,18 +3,19 @@ from typing import Dict, List, Optional
 
 import ida_bytes
 import ida_funcs
+import ida_ida
 import ida_kernwin
 import ida_lines
 import ida_name
 import idaapi
-from pypcode import Arch, Context, PcodePrettyPrinter
+import pypcode
 
-NAME = "IDA P-Code"
-AUTHOR = "https://github.com/yeggor"
+NAME = "idapcode"
 
-VERSION = "0.0.1"
-HELP_MSG = "Get the P-Code for the current function"
-COMMENT_MSG = HELP_MSG
+__version__ = "0.0.2"
+
+HELP_MESSAGE = "Display P-Code for current function"
+COMMENT_MESSAGE = HELP_MESSAGE
 WANTED_KEY = "Ctrl+Alt+S"
 
 DEBUG = False
@@ -28,11 +29,10 @@ class FuncPcode:
         self._addr: int = addr
         self._func_pcode: Optional[List[str]] = None
         self._func_name: Optional[str] = None
-        self._inf = idaapi.get_inf_structure()
 
         # adopted from
         # https://github.com/cseagle/blc/blob/b1447562a3598fd411224dfc24b970cf53ca7c94/plugin.cc#L516
-        self._proc_map: Dict[Any] = dict()
+        self._proc_map: Dict[int, str] = dict()
         self._proc_map[idaapi.PLFM_6502] = "6502"
         self._proc_map[idaapi.PLFM_68K] = "68000"
         self._proc_map[idaapi.PLFM_6800] = "6805"
@@ -53,10 +53,10 @@ class FuncPcode:
         self._proc_map[idaapi.PLFM_Z80] = "Z80"
 
     def _inf_is_64bit(self) -> bool:
-        return self._inf.is_64bit()
+        return ida_ida.inf_is_64bit()
 
     def _inf_is_32bit(self) -> bool:
-        return self._inf.is_32bit()
+        return ida_ida.inf_is_32bit_exactly()
 
     def _get_app_bittness(self) -> int:
         if self._inf_is_64bit():
@@ -66,7 +66,7 @@ class FuncPcode:
         return 16
 
     def _inf_is_be(self) -> bool:
-        return self._inf.is_be()
+        return ida_ida.inf_is_be()
 
     def _get_proc_id(self) -> int:
         return idaapi.ph_get_id()
@@ -90,7 +90,7 @@ class FuncPcode:
             return None
         endian = self._get_endian()
 
-        # adopted from
+        # adapted from
         # https://github.com/cseagle/blc/blob/b1447562a3598fd411224dfc24b970cf53ca7c94/plugin.cc#L637
         sleigh = f"{proc}:{endian}"
         proc_id = self._get_proc_id()
@@ -184,31 +184,44 @@ class FuncPcode:
         if sleigh_id is None:
             return list()
         if DEBUG:
-            print(f"[ {NAME} ] using sleigh id: {sleigh_id}")
+            print(f"[{NAME}] using sleigh id: {sleigh_id}")
 
         # translate to P-Code
-        langs = {l.id: l for arch in Arch.enumerate() for l in arch.languages}
+        langs = {
+            lang.id: lang
+            for arch in pypcode.Arch.enumerate()
+            for lang in arch.languages
+        }
         if sleigh_id not in langs:
             return list()
-        ctx = Context(langs[sleigh_id])
-        res = ctx.translate(code=code, base=0, max_inst=0, bb_terminating=False)
+        ctx = pypcode.Context(langs[sleigh_id])
 
         pcode_lines = list()
-        f = ida_funcs.get_func(self._addr)
-        for insn in res.instructions:
-            # append asm text
-            addr = insn.address.offset + f.start_ea
-            asm_prefix = ida_lines.COLSTR(f"{addr:018X}", ida_lines.SCOLOR_PREFIX)
-            asm_insn = ida_lines.COLSTR(
-                f"{insn.asm_mnem.lower()} {insn.asm_body.lower()}",
-                ida_lines.SCOLOR_INSN,
-            )
-            pcode_lines.append(f"{asm_prefix}  {asm_insn}")
-            # append P-Code text
-            for op in insn.ops:
-                pcode_lines.append(f"  {PcodePrettyPrinter.fmt_op(op)}")
 
-            pcode_lines.append("\n")
+        func = ida_funcs.get_func(self._addr)
+        tx = ctx.translate(buf=code, base_address=func.start_ea)
+
+        for op in tx.ops:
+            # process IMARK operation which used to identify machine
+            # instructions corresponding to a translation
+            if op.opcode == pypcode.OpCode.IMARK:
+                addr = op.inputs[0].offset
+
+                dx = ctx.disassemble(code[addr - func.start_ea :], addr)
+                if dx.instructions:
+                    insn = dx.instructions[0]
+                    asm_prefix = ida_lines.COLSTR(
+                        f"{addr:018X}", ida_lines.SCOLOR_PREFIX
+                    )
+                    asm_insn = ida_lines.COLSTR(
+                        f"{insn.mnem.lower()} {insn.body.lower()}",
+                        ida_lines.SCOLOR_INSN,
+                    )
+                    pcode_lines.append(f"{asm_prefix}  {asm_insn}")
+
+            else:
+                # append the P-Code lines for all operations other than IMARK
+                pcode_lines.append(f"  {pypcode.PcodePrettyPrinter.fmt_op(op)}")
 
         return pcode_lines
 
@@ -285,24 +298,24 @@ class pcodecv_t(ida_kernwin.simplecustviewer_t):
 def show_pcodecv():
     pcodecv = pcodecv_t()
     if not pcodecv.Create(use_colors=True):
-        print(f"[ {NAME} ] failed to create view")
+        print(f"[{NAME}] failed to create view")
         return None
     pcodecv.Show()
     return pcodecv
 
 
 # -----------------------------------------------------------------------
-class IdaPcode(idaapi.plugin_t):
+class IDAPcode(idaapi.plugin_t):
     """IDA P-Code plugin class"""
 
     flags = idaapi.PLUGIN_MOD | idaapi.PLUGIN_PROC | idaapi.PLUGIN_FIX
-    comment = COMMENT_MSG
-    help = HELP_MSG
+    comment = COMMENT_MESSAGE
+    help = HELP_MESSAGE
     wanted_name = NAME
     wanted_hotkey = WANTED_KEY
 
     def init(self):
-        print(f"\n{NAME} ({VERSION})")
+        print(f"\n{NAME} ({__version__})")
         print(f"{NAME} shortcut key is {WANTED_KEY}\n")
         return idaapi.PLUGIN_KEEP
 
@@ -311,19 +324,19 @@ class IdaPcode(idaapi.plugin_t):
 
     def term(self):
         if DEBUG:
-            print(f"[ {NAME} ] terminated")
+            print(f"[{NAME}] terminated")
 
 
 # -----------------------------------------------------------------------
 def PLUGIN_ENTRY():
     try:
-        return IdaPcode()
+        return IDAPcode()
     except Exception as e:
-        print(f"[ {NAME} ] {str(e)}\n{traceback.format_exc()}")
+        print(f"[{NAME}] {str(e)}\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":
     try:
         show_pcodecv()
     except Exception as e:
-        print(f"[ {NAME} ] {str(e)}\n{traceback.format_exc()}")
+        print(f"[{NAME}] {str(e)}\n{traceback.format_exc()}")
