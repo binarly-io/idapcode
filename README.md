@@ -1,19 +1,19 @@
-## IDA P-Code
+## idapcode
 
-IDA plugin displaying the P-Code for the current function.
+IDA plugin that displays the P-code for the current function
 
 ### Usage
 
-| Method | Action |
-| --- | --- |
-| From menu | `Edit -> Plugins -> IDA P-Code` |
-| With hotkey | `Ctrl+Alt+S` |
+| Method              | Action                                  |
+| ------------------- | --------------------------------------- |
+| From menu           | `Edit -> Plugins -> IDA P-Code`         |
+| With hotkey         | `Ctrl+Alt+S`                            |
 | As IDAPython script | `File -> Script file... -> idapcode.py` |
 
 ### Requirements
 
-* [pypcode](https://github.com/angr/pypcode)
+- [pypcode](https://github.com/angr/pypcode)
 
 ### Example
 
-![p-code window](rsrc/img1.png)
+![idapcode](rsrc/idapcode.png)
