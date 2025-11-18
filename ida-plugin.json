@@ -3,7 +3,7 @@
   "plugin": {
     "name": "idapcode",
     "entryPoint": "idapcode.py",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "idaVersions": ">=9.0",
     "urls": {
       "repository": "https://github.com/binarly-io/idapcode"

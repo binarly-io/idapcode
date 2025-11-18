@@ -12,7 +12,7 @@ import pypcode
 
 NAME = "idapcode"
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 HELP_MESSAGE = "Display P-Code for current function"
 COMMENT_MESSAGE = HELP_MESSAGE
@@ -183,6 +183,7 @@ class FuncPcode:
         sleigh_id = self._get_sleigh_id()
         if sleigh_id is None:
             return list()
+
         if DEBUG:
             print(f"[{NAME}] using sleigh id: {sleigh_id}")
 
@@ -194,11 +195,16 @@ class FuncPcode:
         }
         if sleigh_id not in langs:
             return list()
+
         ctx = pypcode.Context(langs[sleigh_id])
 
         pcode_lines = list()
 
         func = ida_funcs.get_func(self._addr)
+        if func is None:
+            print(f"[{NAME}] invalid function at {self._addr:#x}")
+            return list()
+
         tx = ctx.translate(buf=code, base_address=func.start_ea)
 
         for op in tx.ops:
@@ -250,7 +256,6 @@ class pcodecv_t(ida_kernwin.simplecustviewer_t):
 
         pcode_lines = fpcode.pcode
         if not pcode_lines:
-            print(f"Can't get P-Code for function {fpcode.func_name}")
             return False
 
         if not ida_kernwin.simplecustviewer_t.Create(self, title):
@@ -262,31 +267,21 @@ class pcodecv_t(ida_kernwin.simplecustviewer_t):
         return True
 
     def OnClick(self, shift):
-        if DEBUG:
-            print(f"OnClick, shift={shift:#d}")
         return True
 
     def OnDblClick(self, shift):
-        if DEBUG:
-            print(f"OnDblClick, shift={shift:#d}")
         return True
 
     def OnCursorPosChanged(self):
-        if DEBUG:
-            print("OnCurposChanged")
+        pass
 
     def OnClose(self):
-        if DEBUG:
-            print(f"{self.title} closed")
+        pass
 
-    def OnKeydown(self, vkey, shift):
-        if DEBUG:
-            print(f"OnKeydown, vk={vkey:#d} shift={shift:#d}")
+    def OnKeydown(self, _vkey, _shift):
         return True
 
-    def OnHint(self, lineno):
-        if DEBUG:
-            return (1, f"OnHint, line={lineno:#d}")
+    def OnHint(self, _lineno):
         return (0, str())
 
     def Show(self, *args):
@@ -300,6 +295,7 @@ def show_pcodecv():
     if not pcodecv.Create(use_colors=True):
         print(f"[{NAME}] failed to create view")
         return None
+
     pcodecv.Show()
     return pcodecv
 
